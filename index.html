@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Planer</title>
+
+    <!-- Wichtig für iOS Homescreen-Modus -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- CSS Verknüpfung -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>Mein Tag</h1>
+
+    <div class="input-area">
+        <input type="text" id="taskInput" placeholder="Neue Aufgabe eingeben..." autocomplete="off">
+        <button id="addBtn">+</button>
+    </div>
+
+    <ul id="taskList"></ul>
+
+    <!-- JavaScript Verknüpfung -->
+    <script src="script.js"></script>
+</body>
+</html>
