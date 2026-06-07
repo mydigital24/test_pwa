@@ -2,29 +2,144 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Planer</title>
-
-    <!-- Wichtig für iOS Homescreen-Modus -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Structured Daily Planner</title>
+    <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- CSS Verknüpfung -->
-    <link rel="stylesheet" href="style.css">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)\">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)\">
 </head>
 <body>
+    <div class="app-container">
+        <header>
+            <div class="month-selector">
+                <button id="prev-month" class="btn-nav">&#8249;</button>
+                <div class="month-center">
+                    <div id="current-month-label" class="current-month"></div>
+                    <button id="btn-today" class="btn-today-pill">Heute</button>
+                </div>
+                <div class="header-right">
+                    <button id="btn-settings" class="btn-icon-settings">⚙️</button>
+                    <button id="next-month" class="btn-nav">&#8250;</button>
+                </div>
+            </div>
+            <div id="date-strip" class="date-strip"></div>
+            <div class="progress-container">
+                <div id="day-progress" class="progress-bar"></div>
+                <span id="progress-time-label" class="progress-time-label"></span>
+            </div>
+        </header>
 
-    <h1>Mein Tag</h1>
+        <div id="next-task-banner" class="next-task-banner" style="display: none;">
+            <div class="next-task-inner">
+                <span class="next-task-label">Nächste Aufgabe</span>
+                <div class="next-task-info">
+                    <span id="next-task-icon" class="next-task-icon"></span>
+                    <span id="next-task-title" class="next-task-title"></span>
+                    <span id="next-task-time" class="next-task-chip"></span>
+                </div>
+            </div>
+        </div>
 
-    <div class="input-area">
-        <input type="text" id="taskInput" placeholder="Neue Aufgabe eingeben..." autocomplete="off">
-        <button id="addBtn">+</button>
+        <main class="timeline-container">
+            <div id="timeline" class="flexible-timeline"></div>
+        </main>
+
+        <button id="add-task-floating" class="btn-floating">
+            <span class="fab-icon">+</span>
+        </button>
+
+        <div id="task-modal" class="modal">
+            <div class="modal-backdrop"></div>
+            <div id="modal-sheet" class="modal-content">
+                <div class="modal-handle"></div>
+                <h3 id="modal-title">Neuer Eintrag</h3>
+
+                <div class="icon-section">
+                    <span class="field-label">Icon</span>
+                    <div id="icon-display" class="icon-display">📋</div>
+                    <div id="icon-picker" class="icon-picker" style="display:none;"></div>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Titel</span>
+                    <input type="text" id="task-title" placeholder="Was machst du?" autocomplete="off">
+                </div>
+
+                <div class="time-row">
+                    <div class="field-group half">
+                        <span class="field-label">Startzeit</span>
+                        <input type="time" id="task-time">
+                    </div>
+                    <div class="field-group half">
+                        <span class="field-label">Endzeit</span>
+                        <input type="time" id="task-end-time">
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Notizen</span>
+                    <textarea id="task-notes" placeholder="Optionale Notizen..."></textarea>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="modal-cancel" class="btn-secondary">Abbrechen</button>
+                    <button id="modal-delete" class="btn-danger" style="display:none;">Löschen</button>
+                    <button id="modal-save" class="btn-primary">Speichern</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-modal" class="modal">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <div class="modal-handle"></div>
+                <h3>Einstellungen</h3>
+
+                <div class="settings-section">
+                    <span class="field-label">Design (Farbmodus)</span>
+                    <div class="segmented-control">
+                        <button id="theme-auto" class="segment-btn active">Automatisch</button>
+                        <button id="theme-light" class="segment-btn">Hell</button>
+                        <button id="theme-dark" class="segment-btn">Dunkel</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <span class="field-label">Apple PWA Funktionen</span>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">Mitteilungen</span>
+                            <span class="settings-desc">Erlaube tägliche Push-Benachrichtigungen</span>
+                        </div>
+                        <button id="btn-toggle-notifications" class="btn-pill-action">Prüfen</button>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">App-Badges</span>
+                            <span class="settings-desc">Zähler für offene Aufgaben am App-Icon</span>
+                        </div>
+                        <button id="btn-toggle-badges" class="btn-pill-action">Prüfen</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <span class="field-label">Aktionen</span>
+                    <button id="btn-send-test-notification" class="btn-secondary-wide">Mitteilung testen ⚡</button>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="settings-close" class="btn-primary">Fertig</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="home-indicator-padding"></div>
     </div>
 
-    <ul id="taskList"></ul>
-
-    <!-- JavaScript Verknüpfung -->
     <script src="script.js"></script>
 </body>
 </html>
