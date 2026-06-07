@@ -84,6 +84,13 @@
                     <textarea id="task-notes" placeholder="Optionale Notizen..."></textarea>
                 </div>
 
+                <div class="field-group">
+                    <span class="field-label">Mitteilungen</span>
+                    <label><input type="checkbox" id="task-notify-before"> 5 Minuten vorher</label>
+                    <label><input type="checkbox" id="task-notify-start"> Beim Start</label>
+                    <label><input type="checkbox" id="task-notify-end"> Beim Ende</label>
+                </div>
+
                 <div class="modal-actions">
                     <button id="modal-cancel" class="btn-secondary">Abbrechen</button>
                     <button id="modal-delete" class="btn-danger" style="display:none;">Löschen</button>
@@ -123,6 +130,31 @@
                             <span class="settings-desc">Zähler für offene Aufgaben am App-Icon</span>
                         </div>
                         <button id="btn-toggle-badges" class="btn-pill-action">Prüfen</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <span class="field-label">Mitteilungs-Typen</span>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">5 Min vor Aufgabe</span>
+                            <span class="settings-desc">Warnung kurz vor dem Beginn</span>
+                        </div>
+                        <button id="notify-before-toggle" class="btn-pill-action">Prüfen</button>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">Beim Start</span>
+                            <span class="settings-desc">Erinnerung zum Aufgabenbeginn</span>
+                        </div>
+                        <button id="notify-start-toggle" class="btn-pill-action">Prüfen</button>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">Beim Ende</span>
+                            <span class="settings-desc">Benachrichtigung, wenn die Aufgabe endet</span>
+                        </div>
+                        <button id="notify-end-toggle" class="btn-pill-action">Prüfen</button>
                     </div>
                 </div>
 

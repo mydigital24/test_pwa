@@ -41,13 +41,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeDark     = document.getElementById('theme-dark');
     const btnToggleNotif= document.getElementById('btn-toggle-notifications');
     const btnToggleBadge= document.getElementById('btn-toggle-badges');
+    const notifyBeforeToggle = document.getElementById('notify-before-toggle');
+    const notifyStartToggle = document.getElementById('notify-start-toggle');
+    const notifyEndToggle = document.getElementById('notify-end-toggle');
     const btnTestNotif  = document.getElementById('btn-send-test-notification');
+
+    const inputNotifyBefore = document.getElementById('task-notify-before');
+    const inputNotifyStart = document.getElementById('task-notify-start');
+    const inputNotifyEnd = document.getElementById('task-notify-end');
 
     // ─── CONSTANTS ───────────────────────────────────────────────────────
     const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
     const WOCHENTAGE = ["So","Mo","Di","Mi","Do","Fr","Sa"];
     const ICONS = ['📋','✅','⚡','🎯','💪','🧠','💼','📚','🏃','🚴','🧘','🍎','☕','🍽️','🛒','🏋️','😴','🌅','⏰','📅','💻','📱','❤️','🎨'];
     const MOTIVATIONS_FREIZEIT = ["Kurze Pause — du hast es verdient! ☀️", "Jetzt mal durchatmen. 🌿", "Ein Moment für dich. 🧘", "Aufladen für das Nächste. ⚡"];
+    const DEFAULT_SETTINGS = { notifyBefore: true, notifyStart: true, notifyEnd: true };
+    const NOTIFICATION_OFFSET_MIN = 5;
 
     // ─── HELPERS ─────────────────────────────────────────────────────────
     function dateStr(date) { return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; }
@@ -66,8 +75,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function ensureDay(data, ds) {
         if (!data[ds] || data[ds].length === 0) {
             data[ds] = [
-                { id: '__aufstehen__', title: 'Aufstehen', icon: '🌅', time: '07:00', endTime: '', notes: '', completed: false },
-                { id: '__schlafen__',  title: 'Schlafen',  icon: '😴', time: '22:00', endTime: '', notes: '', completed: false }
+                { id: '__aufstehen__', title: 'Aufstehen', icon: '🌅', time: '07:00', endTime: '', notes: '', completed: false, notifyBefore: true, notifyStart: true, notifyEnd: false },
+                { id: '__schlafen__',  title: 'Schlafen',  icon: '😴', time: '22:00', endTime: '', notes: '', completed: false, notifyBefore: true, notifyStart: true, notifyEnd: false }
             ];
             saveData(data);
         }
@@ -78,10 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     renderHeader();
     renderTimeline();
+    checkDueNotifications();
     setupEvents();
     updateSettingsUI();
 
-    setInterval(() => { renderTimeline(); }, 60000);
+    setInterval(() => { renderTimeline(); checkDueNotifications(); }, 60000);
 
     // ─── THEME CONFIG ────────────────────────────────────────────────────
     function initTheme() {
@@ -105,8 +115,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ─── APPLE APPLE PWA CORES (Mitteilungen & Badges) ────────────────────
+    function loadSettings() {
+        try {
+            return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem('planner_settings') || '{}') };
+        } catch (e) {
+            return { ...DEFAULT_SETTINGS };
+        }
+    }
+
+    function saveSettings(settings) {
+        localStorage.setItem('planner_settings', JSON.stringify(settings));
+        updateSettingsUI();
+    }
+
     function updateSettingsUI() {
+        const settings = loadSettings();
+
         if ('Notification' in window) {
+            btnToggleNotif.disabled = false;
             if (Notification.permission === 'granted') {
                 btnToggleNotif.textContent = 'Erlaubt';
                 btnToggleNotif.className = 'btn-pill-action granted';
@@ -118,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnToggleNotif.className = 'btn-pill-action';
             }
         } else {
-            btnToggleNotif.textContent = 'Untertützt nicht';
+            btnToggleNotif.textContent = 'Nicht unterstützt';
             btnToggleNotif.disabled = true;
         }
 
@@ -129,12 +155,96 @@ document.addEventListener('DOMContentLoaded', () => {
             btnToggleBadge.textContent = 'Nicht unterstützt';
             btnToggleBadge.className = 'btn-pill-action';
         }
+
+        notifyBeforeToggle.textContent = settings.notifyBefore ? 'Ein' : 'Aus';
+        notifyBeforeToggle.className = 'btn-pill-action' + (settings.notifyBefore ? ' granted' : '');
+        notifyStartToggle.textContent = settings.notifyStart ? 'Ein' : 'Aus';
+        notifyStartToggle.className = 'btn-pill-action' + (settings.notifyStart ? ' granted' : '');
+        notifyEndToggle.textContent = settings.notifyEnd ? 'Ein' : 'Aus';
+        notifyEndToggle.className = 'btn-pill-action' + (settings.notifyEnd ? ' granted' : '');
     }
 
     async function requestNotificationPermission() {
         if (!('Notification' in window)) return;
         const permission = await Notification.requestPermission();
         updateSettingsUI();
+        if (permission === 'granted') {
+            checkDueNotifications();
+        }
+    }
+
+    function showNotification(title, body) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        const options = {
+            body,
+            icon: 'icon.png',
+            badge: 'icon.png',
+            tag: `${title}-${body}`
+        };
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options)).catch(() => {
+                new Notification(title, options);
+            });
+        } else {
+            new Notification(title, options);
+        }
+    }
+
+    function getNotificationHistory() {
+        try {
+            return JSON.parse(localStorage.getItem('planner_notification_history') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveNotificationHistory(history) {
+        localStorage.setItem('planner_notification_history', JSON.stringify(history));
+    }
+
+    function hasNotificationBeenSent(taskId, type, date) {
+        const history = getNotificationHistory();
+        return history[date] && history[date][taskId] && history[date][taskId].includes(type);
+    }
+
+    function markNotificationSent(taskId, type, date) {
+        const history = getNotificationHistory();
+        if (!history[date]) history[date] = {};
+        if (!history[date][taskId]) history[date][taskId] = [];
+        if (!history[date][taskId].includes(type)) {
+            history[date][taskId].push(type);
+            saveNotificationHistory(history);
+        }
+    }
+
+    function checkDueNotifications() {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        const settings = loadSettings();
+        const data = loadData();
+        const dateKey = todayStr();
+        const tasks = data[dateKey] || [];
+        const currentMinute = nowMin();
+
+        tasks.forEach(task => {
+            if (!task.time || !task.title) return;
+            const taskMin = toMin(task.time);
+            const beforeMin = taskMin - NOTIFICATION_OFFSET_MIN;
+            const endMin = task.endTime ? toMin(task.endTime) : null;
+            const taskId = task.id || `${task.title}-${task.time}`;
+
+            if (settings.notifyBefore && task.notifyBefore !== false && beforeMin >= 0 && currentMinute >= beforeMin && currentMinute <= beforeMin + 2 && !hasNotificationBeenSent(taskId, 'before', dateKey)) {
+                showNotification('Bald startet deine Aufgabe', `In ${NOTIFICATION_OFFSET_MIN} Minuten: ${task.title}`);
+                markNotificationSent(taskId, 'before', dateKey);
+            }
+            if (settings.notifyStart && task.notifyStart !== false && currentMinute >= taskMin && currentMinute <= taskMin + 2 && !hasNotificationBeenSent(taskId, 'start', dateKey)) {
+                showNotification('Deine Aufgabe beginnt jetzt', `${task.title} startet um ${task.time}`);
+                markNotificationSent(taskId, 'start', dateKey);
+            }
+            if (settings.notifyEnd && task.notifyEnd !== false && endMin !== null && currentMinute >= endMin && currentMinute <= endMin + 2 && !hasNotificationBeenSent(taskId, 'end', dateKey)) {
+                showNotification('Deine Aufgabe endet', `${task.title} endet um ${task.endTime}`);
+                markNotificationSent(taskId, 'end', dateKey);
+            }
+        });
     }
 
     function sendTestNotification() {
@@ -375,16 +485,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── MODAL CONTROLS ──────────────────────────────────────────────────
     function openModal(task = null, presetTime = null) {
         iconPickerOpen = false; iconPicker.style.display = 'none';
+        const settings = loadSettings();
         if (task) {
             editingTaskId = task.id; modalTitleEl.textContent = 'Eintrag bearbeiten';
             inputTitle.value = task.title; inputTime.value = task.time;
             inputEndTime.value = task.endTime || ''; inputNotes.value = task.notes || '';
             selectedIcon = task.icon || '📋'; iconDisplay.textContent = selectedIcon;
+            inputNotifyBefore.checked = task.notifyBefore !== false;
+            inputNotifyStart.checked = task.notifyStart !== false;
+            inputNotifyEnd.checked = task.notifyEnd !== false;
             btnDelete.style.display = (task.id === '__aufstehen__' || task.id === '__schlafen__') ? 'none' : 'block';
         } else {
             editingTaskId = null; modalTitleEl.textContent = 'Neuer Eintrag';
             inputTitle.value = ''; inputTime.value = presetTime || currentTimeRounded();
             inputEndTime.value = ''; inputNotes.value = ''; selectedIcon = '📋'; iconDisplay.textContent = '📋';
+            inputNotifyBefore.checked = settings.notifyBefore;
+            inputNotifyStart.checked = settings.notifyStart;
+            inputNotifyEnd.checked = settings.notifyEnd;
             btnDelete.style.display = 'none';
         }
         modal.classList.add('open');
@@ -400,14 +517,37 @@ document.addEventListener('DOMContentLoaded', () => {
         let endTime = inputEndTime.value; if (endTime && toMin(endTime) <= toMin(time)) endTime = '';
 
         const data = loadData(); if (!data[selectedDateStr]) data[selectedDateStr] = [];
+        const notifyBefore = inputNotifyBefore.checked;
+        const notifyStart = inputNotifyStart.checked;
+        const notifyEnd = inputNotifyEnd.checked;
 
         if (editingTaskId) {
             const task = data[selectedDateStr].find(t => t.id === editingTaskId);
-            if (task) { task.title = title; task.icon = selectedIcon; task.time = time; task.endTime = endTime; task.notes = inputNotes.value.trim(); }
+            if (task) {
+                task.title = title;
+                task.icon = selectedIcon;
+                task.time = time;
+                task.endTime = endTime;
+                task.notes = inputNotes.value.trim();
+                task.notifyBefore = notifyBefore;
+                task.notifyStart = notifyStart;
+                task.notifyEnd = notifyEnd;
+            }
         } else {
-            data[selectedDateStr].push({ id: Date.now().toString(), title, icon: selectedIcon, time, endTime, notes: inputNotes.value.trim(), completed: false });
+            data[selectedDateStr].push({
+                id: Date.now().toString(),
+                title,
+                icon: selectedIcon,
+                time,
+                endTime,
+                notes: inputNotes.value.trim(),
+                completed: false,
+                notifyBefore,
+                notifyStart,
+                notifyEnd
+            });
         }
-        saveData(data); closeModal(); renderTimeline();
+        saveData(data); closeModal(); renderTimeline(); checkDueNotifications();
     }
 
     function deleteCurrentTask() {
@@ -436,6 +576,9 @@ document.addEventListener('DOMContentLoaded', () => {
         themeDark.onclick = () => applyTheme('dark');
 
         btnToggleNotif.onclick = requestNotificationPermission;
+        notifyBeforeToggle.onclick = () => { const settings = loadSettings(); settings.notifyBefore = !settings.notifyBefore; saveSettings(settings); };
+        notifyStartToggle.onclick = () => { const settings = loadSettings(); settings.notifyStart = !settings.notifyStart; saveSettings(settings); };
+        notifyEndToggle.onclick = () => { const settings = loadSettings(); settings.notifyEnd = !settings.notifyEnd; saveSettings(settings); };
         btnTestNotif.onclick = sendTestNotification;
 
         iconDisplay.addEventListener('click', e => {
