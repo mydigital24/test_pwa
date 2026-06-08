@@ -8,8 +8,8 @@
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)\">
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)\">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 </head>
 <body>
     <div class="app-container">
@@ -31,6 +31,16 @@
                 <span id="progress-time-label" class="progress-time-label"></span>
             </div>
         </header>
+
+        <div id="suggestion-banner" class="suggestion-banner" style="display: none;">
+            <div class="suggestion-inner">
+                <div>
+                    <strong>Unvollständige Aufgaben</strong>
+                    <p id="suggestion-text">Es gibt Aufgaben vom Vortag, die du heute übernehmen kannst.</p>
+                </div>
+                <button id="suggestion-action" class="btn-pill-action">Vorschlagen</button>
+            </div>
+        </div>
 
         <div id="next-task-banner" class="next-task-banner" style="display: none;">
             <div class="next-task-inner">
@@ -85,10 +95,55 @@
                 </div>
 
                 <div class="field-group">
+                    <span class="field-label">Zusatztermine</span>
+                    <input type="text" id="task-additional-times" placeholder="z.B. 09:00-10:00, 14:00-15:00">
+                    <span class="field-description">Weitere Termine als Start-Ende Paare, getrennt durch Komma.</span>
+                </div>
+
+                <div class="field-group">
                     <span class="field-label">Mitteilungen</span>
-                    <label><input type="checkbox" id="task-notify-before"> 5 Minuten vorher</label>
-                    <label><input type="checkbox" id="task-notify-start"> Beim Start</label>
-                    <label><input type="checkbox" id="task-notify-end"> Beim Ende</label>
+                    <div class="toggle-group" id="task-notify-toggle-group">
+                        <button type="button" data-target="task-notify-before" class="toggle-option">5 Minuten vorher</button>
+                        <button type="button" data-target="task-notify-start" class="toggle-option">Beim Start</button>
+                        <button type="button" data-target="task-notify-end" class="toggle-option">Beim Ende</button>
+                    </div>
+                    <span class="field-description">Aktiviere Erinnerungen für diese Aufgabe.</span>
+                    <input type="checkbox" id="task-notify-before" hidden>
+                    <input type="checkbox" id="task-notify-start" hidden>
+                    <input type="checkbox" id="task-notify-end" hidden>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Status</span>
+                    <div class="toggle-group" id="task-status-toggle-group">
+                        <button type="button" data-status="not-started" class="toggle-option">Nicht gestartet</button>
+                        <button type="button" data-status="in-progress" class="toggle-option">In Arbeit</button>
+                        <button type="button" data-status="done" class="toggle-option">Erledigt</button>
+                    </div>
+                    <span class="field-description">Setze den Fortschritt der Aufgabe.</span>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Abhakbar</span>
+                    <div class="toggle-group" id="task-checkable-toggle">
+                        <button type="button" data-value="true" class="toggle-option">Ja</button>
+                        <button type="button" data-value="false" class="toggle-option">Nein</button>
+                    </div>
+                    <input type="checkbox" id="task-checkable" checked hidden>
+                </div>
+
+                <div class="field-group">
+                    <span class="field-label">Routine</span>
+                    <div class="repeat-row">
+                        <label><input type="checkbox" id="repeat-mon"> Mo</label>
+                        <label><input type="checkbox" id="repeat-tue"> Di</label>
+                        <label><input type="checkbox" id="repeat-wed"> Mi</label>
+                        <label><input type="checkbox" id="repeat-thu"> Do</label>
+                        <label><input type="checkbox" id="repeat-fri"> Fr</label>
+                        <label><input type="checkbox" id="repeat-sat"> Sa</label>
+                        <label><input type="checkbox" id="repeat-sun"> So</label>
+                    </div>
+                    <span class="field-description">Immer wiederkehrende Aufgabe an ausgewählten Tagen.</span>
                 </div>
 
                 <div class="modal-actions">
@@ -120,6 +175,7 @@
                         <div class="settings-info">
                             <span class="settings-title">Mitteilungen</span>
                             <span class="settings-desc">Erlaube tägliche Push-Benachrichtigungen</span>
+                            <span id="notification-status" class="settings-note">Status prüfen</span>
                         </div>
                         <button id="btn-toggle-notifications" class="btn-pill-action">Prüfen</button>
                     </div>
@@ -156,6 +212,25 @@
                         </div>
                         <button id="notify-end-toggle" class="btn-pill-action">Prüfen</button>
                     </div>
+                </div>
+
+                <div class="settings-section">
+                    <span class="field-label">Daten</span>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">Export</span>
+                            <span class="settings-desc">Speichere deine Planner-Daten lokal.</span>
+                        </div>
+                        <button id="btn-export-data" class="btn-pill-action">Export</button>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-info">
+                            <span class="settings-title">Import</span>
+                            <span class="settings-desc">Lade eine JSON-Datei mit Planner-Daten.</span>
+                        </div>
+                        <button id="btn-import-data" class="btn-pill-action">Import</button>
+                    </div>
+                    <input id="import-file-input" type="file" accept="application/json" style="display:none;" />
                 </div>
 
                 <div class="settings-section">
