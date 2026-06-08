@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── CONSTANTS ───────────────────────────────────────────────────────
     const MONATE = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
     const WOCHENTAGE = ["So","Mo","Di","Mi","Do","Fr","Sa"];
-    const ICONS = ['📋','✅','⚡','🎯','💪','🧠','💼','📚','🏃','🚴','🧘','🍎','☕','🍽️','🛒','🏋️','😴','🌅','⏰','📅','💻','📱','❤️','🎨'];
+    const ICONS = ['📋','✅','⚡','🎯','💪','🧠','💼','📚','🏃','🚴','🧘','🍎','☕','🍽️','🛒','🏋️','😴','🌅','⏰','📅','💻','📱','❤️','🎨','📎','🔒','✈️','🛏️','🎵','🎬','🧾','🧹','🛠️','🎁','💡','📈','🧪','🥗','🍹','🧳','☀️','🌙','🌈','🥇','🧩'];
     const MOTIVATIONS_FREIZEIT = ["Kurze Pause — du hast es verdient! ☀️", "Jetzt mal durchatmen. 🌿", "Ein Moment für dich. 🧘", "Aufladen für das Nächste. ⚡"];
     const DEFAULT_SETTINGS = { notifyBefore: true, notifyStart: true, notifyEnd: true };
     const NOTIFICATION_OFFSET_MIN = 5;
