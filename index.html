@@ -13,53 +13,237 @@
 </head>
 <body>
     <div class="app-container">
-        <header>
-            <div class="month-selector">
-                <button id="prev-month" class="btn-nav">&#8249;</button>
-                <div class="month-center">
-                    <div id="current-month-label" class="current-month"></div>
-                    <button id="btn-today" class="btn-today-pill">Heute</button>
+        <div id="tab-heute" class="tab-view active">
+            <div class="h-scroll">
+                <div class="h-hero">
+                    <div class="h-hero-greeting" id="hero-greeting">Guten Morgen</div>
+                    <div class="h-hero-name" id="hero-name">Marten</div>
+                    <div class="h-hero-date" id="hero-date"></div>
                 </div>
-                <div class="header-right">
-                    <button id="btn-settings" class="btn-icon-settings">⚙️</button>
-                    <button id="next-month" class="btn-nav">&#8250;</button>
-                </div>
-            </div>
-            <div id="date-strip" class="date-strip"></div>
-            <div class="progress-container">
-                <div id="day-progress" class="progress-bar"></div>
-                <span id="progress-time-label" class="progress-time-label"></span>
-            </div>
-        </header>
 
-        <div id="suggestion-banner" class="suggestion-banner" style="display: none;">
-            <div class="suggestion-inner">
-                <div>
-                    <strong>Unvollständige Aufgaben</strong>
-                    <p id="suggestion-text">Es gibt Aufgaben vom Vortag, die du heute übernehmen kannst.</p>
+                <div class="h-next-card" id="heute-next-card" style="display:none;">
+                    <div class="h-next-label">Nächstes Ereignis</div>
+                    <div class="h-next-row">
+                        <span class="h-next-icon" id="heute-next-icon">📋</span>
+                        <div class="h-next-info">
+                            <span class="h-next-title" id="heute-next-title">Aufgabe</span>
+                            <span class="h-next-time" id="heute-next-time">in 30 min</span>
+                        </div>
+                    </div>
                 </div>
-                <button id="suggestion-action" class="btn-pill-action">Vorschlagen</button>
+
+                <div class="h-stats">
+                    <div class="h-stat-card">
+                        <span class="h-stat-num" id="heute-stat-open">0</span>
+                        <span class="h-stat-lbl">Offen</span>
+                    </div>
+                    <div class="h-stat-card">
+                        <span class="h-stat-num" id="heute-stat-progress">0</span>
+                        <span class="h-stat-lbl">In Arbeit</span>
+                    </div>
+                    <div class="h-stat-card">
+                        <span class="h-stat-num" id="heute-stat-done">0</span>
+                        <span class="h-stat-lbl">Erledigt</span>
+                    </div>
+                </div>
+
+                <div class="h-preview">
+                    <div class="h-preview-header">
+                        <span class="h-preview-title">Heutige Übersicht</span>
+                        <button class="h-preview-btn" id="heute-go-timeline">Alle anzeigen</button>
+                    </div>
+                    <div id="heute-task-list" class="h-task-list"></div>
+                </div>
             </div>
         </div>
 
-        <div id="next-task-banner" class="next-task-banner" style="display: none;">
-            <div class="next-task-inner">
-                <span class="next-task-label">Nächste Aufgabe</span>
-                <div class="next-task-info">
-                    <span id="next-task-icon" class="next-task-icon"></span>
-                    <span id="next-task-title" class="next-task-title"></span>
-                    <span id="next-task-time" class="next-task-chip"></span>
+        <div id="tab-anstehend" class="tab-view">
+            <div class="ans-header">
+                <div class="ans-top-row">
+                    <button id="btn-ans-today" class="ans-today-pill">Heute</button>
+                    <button id="btn-ans-settings" class="ans-icon-btn" aria-label="Einstellungen">⚙</button>
+                </div>
+                <div class="week-strip" id="week-strip"></div>
+                <div class="ans-meta-row">
+                    <button id="prev-week" class="ans-arrow" aria-label="Vorherige Woche">‹</button>
+                    <span id="ans-month-label" class="ans-month-label"></span>
+                    <button id="next-week" class="ans-arrow" aria-label="Nächste Woche">›</button>
+                </div>
+                <div class="ans-progress-wrap">
+                    <div class="ans-progress-track"><div id="ans-progress-bar" class="ans-progress-fill"></div></div>
+                    <span id="ans-progress-text" class="ans-progress-text"></span>
+                </div>
+                <div id="ans-suggestion" class="ans-suggestion" style="display:none;">
+                    <span id="ans-suggestion-text"></span>
+                    <button id="ans-suggestion-btn" class="ans-chip-btn">Übernehmen</button>
+                </div>
+                <div id="ans-next-banner" class="ans-next-banner" style="display:none;">
+                    <span class="ans-next-label">Als Nächstes</span>
+                    <div class="ans-next-row">
+                        <span id="ans-next-icon"></span>
+                        <span id="ans-next-title"></span>
+                        <span id="ans-next-chip"></span>
+                    </div>
+                </div>
+            </div>
+
+            <main class="ans-timeline">
+                <div id="ans-timeline" class="ans-timeline-inner"></div>
+            </main>
+        </div>
+
+        <div id="tab-einstellungen" class="tab-view">
+            <div class="e-header">
+                <h2 class="e-title">Einstellungen</h2>
+            </div>
+            <div class="e-scroll">
+                <div class="e-section">
+                    <div class="e-section-label">Persönlich</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <span class="e-row-label">Dein Name</span>
+                            <input type="text" id="settings-name" class="e-input" placeholder="Dein Name" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">Design</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <span class="e-row-label">Farbmodus</span>
+                            <div class="e-segment">
+                                <button id="theme-auto" class="e-seg-btn active">Auto</button>
+                                <button id="theme-light" class="e-seg-btn">Hell</button>
+                                <button id="theme-dark" class="e-seg-btn">Dunkel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">Mitteilungen</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Push-Benachrichtigungen</span>
+                                <span class="e-row-desc">Tägliche Erinnerungen</span>
+                            </div>
+                            <button id="btn-toggle-notifications" class="e-action">Prüfen</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">App-Badges</span>
+                                <span class="e-row-desc">Zähler am Icon</span>
+                            </div>
+                            <button id="btn-toggle-badges" class="e-action">Prüfen</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div id="notification-status" class="e-note">Status prüfen</div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">Benachrichtigungs-Typen</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">5 Minuten vorher</span>
+                                <span class="e-row-desc">Vor Aufgabenbeginn warnen</span>
+                            </div>
+                            <button id="notify-before-toggle" class="e-action">Prüfen</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Beim Start</span>
+                                <span class="e-row-desc">Erinnerung zum Start</span>
+                            </div>
+                            <button id="notify-start-toggle" class="e-action">Prüfen</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Beim Ende</span>
+                                <span class="e-row-desc">Benachrichtigung am Ende</span>
+                            </div>
+                            <button id="notify-end-toggle" class="e-action">Prüfen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">ntfy.sh</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <span class="e-row-label">Topic</span>
+                            <input type="text" id="settings-ntfy-topic" class="e-input" placeholder="mein_topic" autocomplete="off" autocorrect="off" autocapitalize="none">
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Testnachricht senden</span>
+                                <span class="e-row-desc">Prüft ob ntfy erreichbar ist</span>
+                            </div>
+                            <button id="btn-ntfy-test" class="e-action">Testen</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-hint">ntfy.sh App installieren → Topic abonnieren → hier eintragen. Benachrichtigungen kommen dann direkt aufs Handy, auch ohne Browser.</div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">Daten</div>
+                    <div class="e-card">
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Export</span>
+                                <span class="e-row-desc">Daten als JSON speichern</span>
+                            </div>
+                            <button id="btn-export-data" class="e-action">Export</button>
+                        </div>
+                        <div class="e-divider"></div>
+                        <div class="e-row">
+                            <div class="e-row-info">
+                                <span class="e-row-title">Import</span>
+                                <span class="e-row-desc">JSON-Datei laden</span>
+                            </div>
+                            <button id="btn-import-data" class="e-action">Import</button>
+                        </div>
+                        <input id="import-file-input" type="file" accept="application/json" style="display:none;" />
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-section-label">Design-Aufgabe</div>
+                    <div class="e-card e-design-card">
+                        <div class="e-design-badge">Täglich</div>
+                        <div class="e-design-content">
+                            <div class="e-design-icon">🎨</div>
+                            <div class="e-design-text">
+                                <span class="e-design-title">Design-Reflexion</span>
+                                <span class="e-design-desc">Beobachte heute eine App, die du nutzt. Welches Prinzip – Klarheit, Deferentialität oder Tiefe – fällt dir auf?</span>
+                            </div>
+                        </div>
+                        <div class="e-design-footer">
+                            <div class="e-design-principles">
+                                <span class="e-design-chip">Klarheit</span>
+                                <span class="e-design-chip">Deferentialität</span>
+                                <span class="e-design-chip">Tiefe</span>
+                            </div>
+                            <button id="btn-add-design-task" class="e-design-btn">Aufgabe hinzufügen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="e-section">
+                    <div class="e-card">
+                        <button id="btn-send-test-notification" class="e-action-full">Mitteilung testen ⚡</button>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <main class="timeline-container">
-            <div id="timeline" class="flexible-timeline"></div>
-        </main>
-
-        <button id="add-task-floating" class="btn-floating">
-            <span class="fab-icon">+</span>
-        </button>
 
         <div id="task-modal" class="modal">
             <div class="modal-backdrop"></div>
@@ -154,97 +338,32 @@
             </div>
         </div>
 
-        <div id="settings-modal" class="modal">
-            <div class="modal-backdrop"></div>
-            <div class="modal-content">
-                <div class="modal-handle"></div>
-                <h3>Einstellungen</h3>
-
-                <div class="settings-section">
-                    <span class="field-label">Design (Farbmodus)</span>
-                    <div class="segmented-control">
-                        <button id="theme-auto" class="segment-btn active">Automatisch</button>
-                        <button id="theme-light" class="segment-btn">Hell</button>
-                        <button id="theme-dark" class="segment-btn">Dunkel</button>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <span class="field-label">Apple PWA Funktionen</span>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">Mitteilungen</span>
-                            <span class="settings-desc">Erlaube tägliche Push-Benachrichtigungen</span>
-                            <span id="notification-status" class="settings-note">Status prüfen</span>
-                        </div>
-                        <button id="btn-toggle-notifications" class="btn-pill-action">Prüfen</button>
-                    </div>
-
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">App-Badges</span>
-                            <span class="settings-desc">Zähler für offene Aufgaben am App-Icon</span>
-                        </div>
-                        <button id="btn-toggle-badges" class="btn-pill-action">Prüfen</button>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <span class="field-label">Mitteilungs-Typen</span>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">5 Min vor Aufgabe</span>
-                            <span class="settings-desc">Warnung kurz vor dem Beginn</span>
-                        </div>
-                        <button id="notify-before-toggle" class="btn-pill-action">Prüfen</button>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">Beim Start</span>
-                            <span class="settings-desc">Erinnerung zum Aufgabenbeginn</span>
-                        </div>
-                        <button id="notify-start-toggle" class="btn-pill-action">Prüfen</button>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">Beim Ende</span>
-                            <span class="settings-desc">Benachrichtigung, wenn die Aufgabe endet</span>
-                        </div>
-                        <button id="notify-end-toggle" class="btn-pill-action">Prüfen</button>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <span class="field-label">Daten</span>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">Export</span>
-                            <span class="settings-desc">Speichere deine Planner-Daten lokal.</span>
-                        </div>
-                        <button id="btn-export-data" class="btn-pill-action">Export</button>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-info">
-                            <span class="settings-title">Import</span>
-                            <span class="settings-desc">Lade eine JSON-Datei mit Planner-Daten.</span>
-                        </div>
-                        <button id="btn-import-data" class="btn-pill-action">Import</button>
-                    </div>
-                    <input id="import-file-input" type="file" accept="application/json" style="display:none;" />
-                </div>
-
-                <div class="settings-section">
-                    <span class="field-label">Aktionen</span>
-                    <button id="btn-send-test-notification" class="btn-secondary-wide">Mitteilung testen ⚡</button>
-                </div>
-
-                <div class="modal-actions">
-                    <button id="settings-close" class="btn-primary">Fertig</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="home-indicator-padding"></div>
+        <nav class="dock">
+            <button class="nav-btn active" data-tab="heute">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2L1 11h3v10h7v-5h2v5h7V11h3L12 2zm0 3.4l5 4.3V19h-3v-5H10v5H7V9.7l5-4.3z" fill="currentColor"/>
+                </svg>
+                <span class="nav-lbl">Heute</span>
+            </button>
+            <button class="nav-btn" id="add-task-floating">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" fill="currentColor"/>
+                </svg>
+                <span class="nav-lbl">Neu</span>
+            </button>
+            <button class="nav-btn" data-tab="anstehend">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-4-4 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z" fill="currentColor"/>
+                </svg>
+                <span class="nav-lbl">Anstehend</span>
+            </button>
+            <button class="nav-btn" data-tab="einstellungen">
+                <svg class="nav-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.12-.1.17-.26.12-.41l-1.92-3.32c-.09-.16-.26-.24-.44-.2l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.25-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.18-.07-.38 0-.44.2l-1.92 3.32c-.06.16-.01.32.12.41l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.12.1-.17.26-.12.41l1.92 3.32c.09.16.26.24.44.2l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.04.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.18.07.38 0 .44-.2l1.92-3.32c.06-.16.01-.32-.12-.41l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" fill="currentColor"/>
+                </svg>
+                <span class="nav-lbl">Einstellungen</span>
+            </button>
+        </nav>
     </div>
 
     <script src="script.js"></script>

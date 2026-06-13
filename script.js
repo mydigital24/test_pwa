@@ -9,17 +9,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedIcon = '📋';
     let iconPickerOpen = false;
     let shouldScrollToCurrentTime = true;
+    let yearViewDate = new Date();
+    let previousTab = 'heute';
 
     // ─── DOM ─────────────────────────────────────────────────────────────
-    const monthLabel   = document.getElementById('current-month-label');
-    const dateStrip    = document.getElementById('date-strip');
-    const timeline     = document.getElementById('timeline');
-    const progressBar  = document.getElementById('day-progress');
-    const progressTime = document.getElementById('progress-time-label');
-    const nextBanner   = document.getElementById('next-task-banner');
-    const nextIcon     = document.getElementById('next-task-icon');
-    const nextTitle    = document.getElementById('next-task-title');
-    const nextTime     = document.getElementById('next-task-time');
+    const weekStrip    = document.getElementById('week-strip');
+    const ansTimeline  = document.getElementById('ans-timeline');
+    const ansMonthLabel= document.getElementById('ans-month-label');
+    const ansProgress  = document.getElementById('ans-progress-bar');
+    const ansProgressT = document.getElementById('ans-progress-text');
+    const ansNextBanner= document.getElementById('ans-next-banner');
+    const ansNextIcon  = document.getElementById('ans-next-icon');
+    const ansNextTitle = document.getElementById('ans-next-title');
+    const ansNextChip  = document.getElementById('ans-next-chip');
+    const ansSuggestion= document.getElementById('ans-suggestion');
+    const ansSuggText  = document.getElementById('ans-suggestion-text');
+    const ansSuggBtn   = document.getElementById('ans-suggestion-btn');
 
     const modal        = document.getElementById('task-modal');
     const modalBackdrop= document.querySelector('#task-modal .modal-backdrop');
@@ -35,10 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconPicker   = document.getElementById('icon-picker');
 
     // Settings elements
-    const settingsModal = document.getElementById('settings-modal');
-    const btnSettings   = document.getElementById('btn-settings');
-    const btnSettingsClose = document.getElementById('settings-close');
-    const settingsBackdrop = document.querySelector('#settings-modal .modal-backdrop');
+    const btnAnsSettings= document.getElementById('btn-ans-settings');
     const themeAuto     = document.getElementById('theme-auto');
     const themeLight    = document.getElementById('theme-light');
     const themeDark     = document.getElementById('theme-dark');
@@ -52,9 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnExportData = document.getElementById('btn-export-data');
     const btnImportData = document.getElementById('btn-import-data');
     const importFileInput = document.getElementById('import-file-input');
-    const suggestionBanner = document.getElementById('suggestion-banner');
-    const suggestionText = document.getElementById('suggestion-text');
-    const suggestionAction = document.getElementById('suggestion-action');
+    const inputNtfyTopic = document.getElementById('settings-ntfy-topic');
 
     const inputNotifyBefore = document.getElementById('task-notify-before');
     const inputNotifyStart = document.getElementById('task-notify-start');
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // update UI (simple approach: re-render whole timeline)
-                renderTimeline();
+                renderAnstehend();
             });
         });
 
@@ -325,20 +325,18 @@ document.addEventListener('DOMContentLoaded', () => {
             data[todayKey].push(copy);
         });
         saveData(data);
-        renderTimeline();
+        renderAnstehend();
         updateSuggestionBanner();
     }
 
     function updateSuggestionBanner() {
-        const todayKey = todayStr();
-        const yesterdayKey = getPreviousDayKey(todayKey);
-        const incomplete = getIncompleteTasks(yesterdayKey);
-        if (selectedDateStr === todayKey && incomplete.length > 0) {
-            suggestionBanner.style.display = 'block';
-            suggestionText.textContent = `Vom Vortag sind ${incomplete.length} Aufgaben noch offen. Möchtest du sie heute übernehmen?`;
-            suggestionAction.textContent = 'Vorschlagen';
+        if (selectedDateStr !== todayStr()) { ansSuggestion.style.display = 'none'; return; }
+        const incomplete = getIncompleteTasks(getPreviousDayKey(todayStr()));
+        if (incomplete.length > 0) {
+            ansSuggestion.style.display = 'flex';
+            ansSuggText.textContent = `${incomplete.length} offene Aufgaben vom Vortag`;
         } else {
-            suggestionBanner.style.display = 'none';
+            ansSuggestion.style.display = 'none';
         }
     }
 
@@ -362,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const imported = JSON.parse(reader.result);
                 if (typeof imported !== 'object' || imported === null || Array.isArray(imported)) throw new Error('Ungültiges Format');
                 localStorage.setItem('planner_tasks', JSON.stringify(imported));
-                renderTimeline();
+                renderAnstehend();
                 updateSettingsUI();
                 updateSuggestionBanner();
                 alert('Import erfolgreich!');
@@ -393,14 +391,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── INITIATION ──────────────────────────────────────────────────────
     buildIconPicker();
     initTheme();
-    renderHeader();
-    renderTimeline();
+    renderWeekStrip();
+    renderAnstehend();
+    renderHeuteTab();
     checkDueNotifications();
     setupEvents();
     updateSettingsUI();
     offerExportPrompt();
 
-    setInterval(() => { renderTimeline(); checkDueNotifications(); }, 60000);
+    setInterval(() => { renderAnstehend(); checkDueNotifications(); }, 60000);
 
     // ─── THEME CONFIG ────────────────────────────────────────────────────
     function initTheme() {
@@ -489,6 +488,18 @@ document.addEventListener('DOMContentLoaded', () => {
         notifyStartToggle.className = 'btn-pill-action' + (settings.notifyStart ? ' granted' : '');
         notifyEndToggle.textContent = settings.notifyEnd ? 'Ein' : 'Aus';
         notifyEndToggle.className = 'btn-pill-action' + (settings.notifyEnd ? ' granted' : '');
+
+        // ntfy Topic laden
+        const savedTopic = localStorage.getItem('planner_ntfy_topic') || '';
+        if (inputNtfyTopic) inputNtfyTopic.value = savedTopic;
+
+        // Name laden
+        const savedName = localStorage.getItem('planner_name') || 'Marten';
+        const nameInput = document.getElementById('settings-name');
+        if (nameInput && !nameInput.dataset.initialized) {
+            nameInput.value = savedName;
+            nameInput.dataset.initialized = 'true';
+        }
     }
 
     async function requestNotificationPermission() {
@@ -512,26 +523,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showNotification(title, body) {
-        if (!('Notification' in window) || Notification.permission !== 'granted') return;
-        const options = {
-            body,
-            icon: 'icon.png',
-            badge: 'icon.png',
-            tag: `${title}-${body}`
-        };
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options)).catch(err => {
-                console.warn('Service Worker Notification failed, fallback to Notification API', err);
-                try { new Notification(title, options); } catch (e) { console.warn('Notification fallback failed', e); }
-            });
-        } else {
-            try {
-                new Notification(title, options);
-            } catch (err) {
-                console.warn('Notification failed', err);
-            }
-        }
+        sendNtfy(title, body);
     }
+
+    
+    
 
     function getNotificationHistory() {
         try {
@@ -589,36 +585,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function sendNtfy(title, body) {
+        const topic = localStorage.getItem('planner_ntfy_topic')?.trim();
+        if (!topic) {
+            alert('Kein ntfy-Topic eingetragen. Bitte unter Einstellungen → ntfy.sh ein Topic eintragen.');
+            return;
+        }
+        fetch('https://ntfy.sh/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                topic: topic,
+                title: title,
+                message: body,
+                priority: 4,
+                tags: ['calendar']
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                alert('ntfy Fehler ' + response.status + ': ' + response.statusText + '\nTopic: ' + topic);
+            }
+        })
+        .catch(err => {
+            alert('ntfy Netzwerkfehler: ' + err.message);
+        });
+    }
+
     function sendTestNotification() {
+        const topic = localStorage.getItem('planner_ntfy_topic')?.trim();
+        if (topic) {
+            sendNtfy('Strukturierter Planer ⚡', 'ntfy funktioniert! Deine Benachrichtigungen sind aktiv.');
+            return;
+        }
         if (!('Notification' in window)) {
-            alert('Mitteilungen werden von deinem Browser nicht unterstützt.');
+            alert('Kein ntfy-Topic eingetragen und Browser-Mitteilungen nicht unterstützt.');
             return;
         }
         if (Notification.permission !== 'granted') {
-            if (Notification.permission === 'denied') {
-                alert('Mitteilungen sind blockiert. Bitte aktiviere sie in den Browser-Einstellungen.');
-            } else {
-                alert('Bitte aktiviere zuerst die Mitteilungen oben.');
-            }
+            alert('Trage ein ntfy-Topic ein oder aktiviere Browser-Mitteilungen.');
             return;
         }
-
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification('Strukturierter Planer', {
-                    body: 'Mitteilungen funktionieren einwandfrei offline! ⚡',
-                    icon: 'icon.png'
-                });
-            }).catch(err => {
-                console.warn('Test notification failed via Service Worker', err);
-                try { new Notification('Strukturierter Planer', { body: 'Mitteilung funktioniert!' }); } catch (error) { console.warn('Notification fallback failed', error); }
+                reg.showNotification('Strukturierter Planer', { body: 'Mitteilungen funktionieren! ⚡', icon: 'icon.png' });
+            }).catch(() => {
+                try { new Notification('Strukturierter Planer', { body: 'Mitteilung funktioniert!' }); } catch(e) {}
             });
         } else {
-            try {
-                new Notification('Strukturierter Planer', { body: 'Mitteilung funktioniert!' });
-            } catch (err) {
-                console.warn('Test notification failed', err);
-            }
+            try { new Notification('Strukturierter Planer', { body: 'Mitteilung funktioniert!' }); } catch(e) {}
         }
     }
 
@@ -653,39 +668,42 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ─── HEADER / DATE STRIP ─────────────────────────────────────────────
-    function renderHeader() {
-        monthLabel.textContent = `${MONATE[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-        dateStrip.innerHTML = '';
-        const y = currentDate.getFullYear(), mo = currentDate.getMonth();
-        const days = new Date(y, mo + 1, 0).getDate();
-        const today = todayStr();
-
-        for (let i = 1; i <= days; i++) {
-            const d = new Date(y, mo, i), ds = dateStr(d);
-            const el = document.createElement('div');
-            el.className = `date-item ${ds === selectedDateStr ? 'active' : ''} ${ds === today ? 'today-marker' : ''}`;
-            el.innerHTML = `<span class="weekday">${WOCHENTAGE[d.getDay()]}</span><span class="day-num">${pad(i)}</span>`;
-            el.addEventListener('click', () => {
-                document.querySelectorAll('.date-item').forEach(x => x.classList.remove('active'));
-                el.classList.add('active');
-                selectedDateStr = ds;
-                renderTimeline();
-            });
-            dateStrip.appendChild(el);
-            if (ds === selectedDateStr) {
-                setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }), 60);
-            }
-        }
+    // ─── WEEK STRIP ──────────────────────────────────────────────────────
+    function getWeekStart(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+        return d;
     }
 
-    // ─── TIMELINE ────────────────────────────────────────────────────────
-    function renderTimeline() {
-        timeline.innerHTML = '';
-        const data = loadData();
-        ensureDay(data, selectedDateStr);
-        const dayTasks = getDayTasks(selectedDateStr);
+    function renderWeekStrip() {
+        if (!weekStrip) return;
+        weekStrip.innerHTML = '';
+        const start = getWeekStart(currentDate);
+        const today = todayStr();
 
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            const ds = dateStr(d);
+            const el = document.createElement('div');
+            el.className = `week-day${ds === todayStr() ? ' today' : ''}${ds === selectedDateStr ? ' active' : ''}`;
+            el.innerHTML = `<span class="week-day-name">${WOCHENTAGE[d.getDay()]}</span><span class="week-day-num">${d.getDate()}</span>`;
+            el.addEventListener('click', () => {
+                selectedDateStr = ds;
+                renderWeekStrip();
+                renderAnstehend();
+            });
+            weekStrip.appendChild(el);
+        }
+        ansMonthLabel.textContent = `${MONATE[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    }
+
+    // ─── ANSTEHEND (TIMELINE) ────────────────────────────────────────────
+    function renderAnstehend() {
+        ansTimeline.innerHTML = '';
+        const dayTasks = getDayTasks(selectedDateStr);
         const aufTask  = dayTasks.find(t => t.id === '__aufstehen__');
         const schlTask = dayTasks.find(t => t.id === '__schlafen__');
         const midTasks = dayTasks.filter(t => t.id !== '__aufstehen__' && t.id !== '__schlafen__').sort((a, b) => toMin(a.time) - toMin(b.time));
@@ -693,247 +711,196 @@ document.addEventListener('DOMContentLoaded', () => {
         const isToday = selectedDateStr === todayStr(), isPast = selectedDateStr < todayStr(), curMin = nowMin();
         const startMin = toMin(aufTask.time), endMin = toMin(schlTask.time), totalMin = Math.max(1, endMin - startMin);
 
+        // progress
         if (isToday) {
             const pct = ((curMin - startMin) / totalMin) * 100;
-            progressBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+            ansProgress.style.width = `${Math.min(100, Math.max(0, pct))}%`;
             const remaining = endMin - curMin;
-            progressTime.textContent = remaining > 0 && curMin >= startMin ? minToStr(remaining) + ' übrig' : '';
+            ansProgressT.textContent = remaining > 0 && curMin >= startMin ? `${minToStr(remaining)} übrig` : '';
         } else {
-            progressBar.style.width = isPast ? '100%' : '0%';
-            progressTime.textContent = '';
+            ansProgress.style.width = isPast ? '100%' : '0%';
+            ansProgressT.textContent = '';
         }
 
-        updateNextTaskBanner(midTasks, aufTask, schlTask, isToday, curMin);
-        timeline.appendChild(makeFixedRow(aufTask, isPast || (isToday && toMin(aufTask.time) <= curMin), data, false));
+        updateAnsNext(midTasks, aufTask, schlTask, isToday, curMin);
+        updateAnsSuggestion();
+
+        ansTimeline.appendChild(makeAnsFixed(aufTask, isPast || (isToday && toMin(aufTask.time) <= curMin), false));
 
         let lastMin = startMin;
         midTasks.forEach(task => {
             const taskMin = toMin(task.time);
             if (taskMin > lastMin) {
-                timeline.appendChild(makeGapRow(timeFromMin(lastMin), task.time, taskMin - lastMin, isToday, isPast, curMin, task));
+                ansTimeline.appendChild(makeAnsGap(timeFromMin(lastMin), task.time, taskMin - lastMin, isToday, isPast, curMin, task));
                 lastMin = taskMin;
             }
             let dur = 60;
             if (task.endTime && toMin(task.endTime) > taskMin) dur = toMin(task.endTime) - taskMin;
-            timeline.appendChild(makeTaskRow(task, dur, isToday, isPast, curMin, taskMin, taskMin + dur, data));
+            ansTimeline.appendChild(makeAnsTask(task, dur, isToday, isPast, curMin, taskMin, taskMin + dur));
             lastMin = taskMin + dur;
         });
 
         if (endMin > lastMin) {
-            timeline.appendChild(makeGapRow(timeFromMin(lastMin), schlTask.time, endMin - lastMin, isToday, isPast, curMin, schlTask));
+            ansTimeline.appendChild(makeAnsGap(timeFromMin(lastMin), schlTask.time, endMin - lastMin, isToday, isPast, curMin, schlTask));
         }
-        timeline.appendChild(makeFixedRow(schlTask, isPast || (isToday && toMin(schlTask.time) <= curMin), data, true));
+        ansTimeline.appendChild(makeAnsFixed(schlTask, isPast || (isToday && toMin(schlTask.time) <= curMin), true));
         updateAppBadge();
-        updateSuggestionBanner();
         if (selectedDateStr === todayStr() && shouldScrollToCurrentTime) {
-            scrollToCurrentTime();
+            const active = ansTimeline.querySelector('.ans-card.active-now');
+            const target = active ? active.closest('.ans-row') : ansTimeline.querySelector('.ans-live-line')?.closest('.ans-row');
+            if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); shouldScrollToCurrentTime = false; }
         }
     }
 
-    function focusCurrentTime() {
-        currentDate = new Date();
-        selectedDateStr = todayStr();
-        shouldScrollToCurrentTime = true;
-        renderHeader();
-        renderTimeline();
-    }
-
-    function scrollToCurrentTime() {
-        const activeContent = timeline.querySelector('.content-col.active-task');
-        const targetRow = activeContent ? activeContent.closest('.timeline-row') : timeline.querySelector('.live-time-line')?.closest('.timeline-row');
-        if (!targetRow) return;
-        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        shouldScrollToCurrentTime = false;
-    }
-
-    function makeGapRow(startTime, endTime, durMin, isToday, isPast, curMin, nextTask) {
-        const startMin = toMin(startTime), endMin = toMin(endTime), isCurrent = isToday && curMin >= startMin && curMin < endMin;
-        const linePast = isPast || (isToday && startMin <= curMin), height = Math.max(64, durMin * 1.4);
-        const row = document.createElement('div'); row.className = 'timeline-row'; row.style.minHeight = height + 'px';
-
-        const remainMin = isCurrent ? (endMin - curMin) : durMin;
-        const subText = (isCurrent && nextTask && nextTask.id !== '__schlafen__') ? `In ${minToStr(remainMin)}: ${nextTask.title}` : `${startTime} – ${endTime} (${minToStr(durMin)})`;
+    function makeAnsGap(startTime, endTime, durMin, isToday, isPast, curMin, nextTask) {
+        const sM = toMin(startTime), eM = toMin(endTime), isCurrent = isToday && curMin >= sM && curMin < eM;
+        const linePast = isPast || (isToday && sM <= curMin);
+        const row = document.createElement('div'); row.className = 'ans-row'; row.style.minHeight = Math.max(52, durMin * 1.3) + 'px';
+        const remain = isCurrent ? (eM - curMin) : durMin;
+        const sub = (isCurrent && nextTask && nextTask.id !== '__schlafen__') ? `In ${minToStr(remain)}: ${nextTask.title}` : `${startTime} – ${endTime} (${minToStr(durMin)})`;
         const quote = isCurrent ? randItem(MOTIVATIONS_FREIZEIT) : '';
-
-        let lineStyle = '', pct = 0;
-        if (linePast && !isCurrent) lineStyle = 'background: var(--past-line-color);';
-        else if (isCurrent) {
-            pct = Math.max(0, Math.min(100, ((curMin - startMin) / durMin) * 100));
-            lineStyle = `background: linear-gradient(to bottom, var(--past-line-color) ${pct}%, var(--future-line-color) ${pct}%);`;
-        }
+        const pct = isCurrent ? Math.max(0, Math.min(100, ((curMin - sM) / durMin) * 100)) : 0;
 
         row.innerHTML = `
-        ${isCurrent ? `<div class="live-time-line" style="top: ${pct}%;"><span class="live-time-text">${timeFromMin(curMin)}</span></div>` : ''}
-        <div class="time-col">
-        <span class="start-time" style="color:var(--text-muted)">${startTime}</span>
-        <div class="time-dot ${linePast ? 'past-dot' : ''} ${isCurrent ? 'current-dot' : ''}"></div>
-        <div class="duration-line" style="${lineStyle}"></div>
+        ${isCurrent ? `<div class="ans-live-line" style="top:${pct}%;"><span class="ans-live-label">${timeFromMin(curMin)}</span></div>` : ''}
+        <div class="ans-time-col">
+            <span class="ans-start-time" style="color:var(--text-secondary)">${startTime}</span>
+            <div class="ans-dot ${linePast ? 'past' : ''} ${isCurrent ? 'current' : ''}"></div>
+            <div class="ans-line ${linePast ? 'past' : ''}"></div>
         </div>
-        <div class="content-col free-space-card ${isCurrent ? 'active-task' : ''}">
-        <div class="free-text"><span class="free-text-main">${subText}</span>${quote ? `<span class="free-text-sub">${quote}</span>` : ''}</div>
+        <div class="ans-card free ${isCurrent ? 'active-now' : ''}">
+            <div style="flex:1"><span class="ans-free-text">${sub}</span>${quote ? `<div class="ans-free-sub">${quote}</div>` : ''}</div>
         </div>`;
-        row.querySelector('.content-col').addEventListener('click', () => openModal(null, startTime));
+        row.querySelector('.ans-card').addEventListener('click', () => openModal(null, startTime));
         return row;
     }
 
-    function makeTaskRow(task, durMin, isToday, isPast, curMin, taskMin, taskEndMin, data) {
-        const isCurrent = isToday && curMin >= taskMin && curMin < taskEndMin, linePast = isPast || (isToday && taskMin < curMin);
-        const row = document.createElement('div'); row.className = 'timeline-row'; row.style.minHeight = Math.max(64, durMin * 1.4) + 'px';
+    function makeAnsTask(task, durMin, isToday, isPast, curMin, tMin, tEnd) {
+        const isCurrent = isToday && curMin >= tMin && curMin < tEnd, linePast = isPast || (isToday && tMin < curMin);
+        const row = document.createElement('div'); row.className = 'ans-row'; row.style.minHeight = Math.max(52, durMin * 1.3) + 'px';
         const endLabel = task.endTime ? `bis ${task.endTime}` : '', durLabel = `${minToStr(durMin)}`;
-
-        let lineStyle = '', pct = 0;
-        if (linePast && !isCurrent) lineStyle = 'background: var(--past-line-color);';
-        else if (isCurrent) {
-            pct = Math.max(0, Math.min(100, ((curMin - taskMin) / durMin) * 100));
-            lineStyle = `background: linear-gradient(to bottom, var(--past-line-color) ${pct}%, var(--future-line-color) ${pct}%);`;
-        }
-
-        const sourceTask = getTaskSource(task);
-        const status = normalizeStatus(sourceTask);
-        const taskDone = isTaskDone(sourceTask);
-        const canCheck = isTaskCheckable(sourceTask);
+        const src = getTaskSource(task);
+        const status = normalizeStatus(src);
+        const done = isTaskDone(src);
+        const pct = isCurrent ? Math.max(0, Math.min(100, ((curMin - tMin) / durMin) * 100)) : 0;
 
         row.innerHTML = `
-        ${isCurrent ? `<div class="live-time-line" style="top: ${pct}%;"><span class="live-time-text">${timeFromMin(curMin)}</span></div>` : ''}
-        <div class="time-col">
-        <span class="start-time">${task.time}</span>
-        ${endLabel ? `<span class="end-time-small">${endLabel}</span>` : ''}
-        <div class="time-dot ${linePast ? 'past-dot' : ''} ${isCurrent ? 'current-dot' : ''}"></div>
-        <div class="duration-line" style="${lineStyle}"></div>
+        ${isCurrent ? `<div class="ans-live-line" style="top:${pct}%;"><span class="ans-live-label">${timeFromMin(curMin)}</span></div>` : ''}
+        <div class="ans-time-col">
+            <span class="ans-start-time">${task.time}</span>
+            ${endLabel ? `<span class="ans-end-time">${endLabel}</span>` : ''}
+            <div class="ans-dot ${linePast ? 'past' : ''} ${isCurrent ? 'current' : ''}"></div>
+            <div class="ans-line ${linePast ? 'past' : ''}"></div>
         </div>
-        <div class="content-col ${taskDone ? 'completed' : ''} ${isCurrent ? 'active-task' : ''} ${linePast && !isCurrent ? 'past-card' : ''}">
-        <div class="task-left">
-        <span class="task-emoji">${task.icon || '📋'}</span>
-        <div class="task-text">
-        <h2>${task.title}${isCurrent ? '<span class="live-dot"></span>' : ''}</h2>
-        ${task.notes ? `<p>${task.notes}</p>` : ''}
-        <span class="task-duration-badge">${durLabel}</span>
-        </div>
-        </div>
-        
+        <div class="ans-card ${done ? 'completed' : ''} ${isCurrent ? 'active-now' : ''} ${linePast && !isCurrent ? 'past' : ''}">
+            <div class="ans-card-left">
+                <span class="ans-emoji">${task.icon || '📋'}</span>
+                <div class="ans-text">
+                    <span class="ans-title">${task.title}${isCurrent ? '<span class="ans-live-dot"></span>' : ''}</span>
+                    ${task.notes ? `<span class="ans-note">${task.notes}</span>` : ''}
+                    <span class="ans-dur">${durLabel}</span>
+                </div>
+            </div>
+            ${isTaskCheckable(src) ? makeStatusDots(status) : ''}
         </div>`;
 
-        const contentCol = row.querySelector('.content-col');
-        contentCol.addEventListener('click', () => openModal(task));
-        // insert status controls
-        try {
-            const controls = createStatusControls(task, sourceTask, status, data);
-            // place controls at the end of the content column
-            contentCol.appendChild(controls);
-        } catch (err) {
-            const statusWrapper = row.querySelector('.task-status-wrapper');
-            if (statusWrapper) statusWrapper.remove();
-        }
+        const card = row.querySelector('.ans-card');
+        card.addEventListener('click', () => openModal(task));
 
-        // --- Swipe gestures (native-like) ---
-        const swipeActions = document.createElement('div');
-        swipeActions.className = 'swipe-actions';
-        swipeActions.innerHTML = `<button class="swipe-delete-btn">Löschen</button>`;
-        row.appendChild(swipeActions);
-
-        let startX = 0, startY = 0, currentX = 0, dragging = false;
-        const SWIPE_RIGHT_THRESHOLD = 60;
-        const SWIPE_LEFT_THRESHOLD = -80;
-
-        function handleSwipeRight() {
-            const newStatus = nextStatus(status);
-            if (task && task.isRoutine && task.routineId) {
-                markRoutineStatus(selectedDateStr, task.routineId, newStatus);
-            } else {
-                const store = loadData(); ensureDay(store, selectedDateStr);
-                const day = store[selectedDateStr];
-                const tid = sourceTask.id || sourceTask.baseId || sourceTask.displayId;
-                const idx = day.findIndex(x => x.id === tid);
-                if (idx !== -1) {
-                    day[idx].status = newStatus;
-                    day[idx].completed = newStatus === 'done';
-                    saveData(store);
+        // swipe
+        let startX = 0, startY = 0, cX = 0, drag = false;
+        card.addEventListener('touchstart', e => { const t = e.touches[0]; startX = t.clientX; startY = t.clientY; drag = true; cX = 0; card.style.transition = 'none'; }, { passive: true });
+        card.addEventListener('touchmove', e => {
+            if (!drag) return;
+            const t = e.touches[0]; const dx = t.clientX - startX; const dy = t.clientY - startY;
+            if (Math.abs(dy) > Math.abs(dx)) return;
+            e.preventDefault(); cX = dx;
+            card.style.transform = `translateX(${Math.max(-100, Math.min(100, dx))}px)`;
+        }, { passive: false });
+        card.addEventListener('touchend', () => {
+            drag = false; card.style.transition = 'transform 0.18s';
+            if (cX > 60) {
+                const ns = nextStatus(status);
+                if (task.isRoutine && task.routineId) markRoutineStatus(selectedDateStr, task.routineId, ns);
+                else {
+                    const store = loadData(); ensureDay(store, selectedDateStr);
+                    const tid = src.id || src.baseId || src.displayId;
+                    const idx = (store[selectedDateStr] || []).findIndex(x => x.id === tid);
+                    if (idx !== -1) { store[selectedDateStr][idx].status = ns; store[selectedDateStr][idx].completed = ns === 'done'; saveData(store); }
+                }
+                try { if (navigator.vibrate) navigator.vibrate(8); } catch(e) {}
+                renderAnstehend();
+            } else if (cX < -80) {
+                if (confirm('Eintrag löschen?')) {
+                    const store = loadData();
+                    if (task.isRoutine) store.__routines__ = (store.__routines__ || []).filter(r => r.id !== src.id);
+                    else store[selectedDateStr] = (store[selectedDateStr] || []).filter(t => t.id !== src.id);
+                    saveData(store); renderAnstehend();
                 }
             }
-            try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) {}
-            renderTimeline();
-        }
-
-        contentCol.addEventListener('touchstart', (ev) => {
-            const t = ev.touches[0]; startX = t.clientX; startY = t.clientY; dragging = true; currentX = 0; contentCol.style.transition = 'none';
-        }, { passive: true });
-
-        contentCol.addEventListener('touchmove', (ev) => {
-            if (!dragging) return;
-            const t = ev.touches[0]; const dx = t.clientX - startX; const dy = t.clientY - startY;
-            if (Math.abs(dy) > Math.abs(dx)) return; // vertical scroll
-            ev.preventDefault(); currentX = dx;
-            const translate = Math.max(-100, Math.min(100, dx));
-            contentCol.style.transform = `translateX(${translate}px)`;
-        }, { passive: false });
-
-        contentCol.addEventListener('touchend', (ev) => {
-            dragging = false; contentCol.style.transition = 'transform 0.18s ease';
-            if (currentX > SWIPE_RIGHT_THRESHOLD) {
-                handleSwipeRight();
-                contentCol.style.transform = 'translateX(0)';
-                swipeActions.classList.remove('visible');
-            } else if (currentX < SWIPE_LEFT_THRESHOLD) {
-                contentCol.style.transform = 'translateX(-80px)';
-                swipeActions.classList.add('visible');
-            } else {
-                contentCol.style.transform = 'translateX(0)';
-                swipeActions.classList.remove('visible');
-            }
-            currentX = 0;
-        });
-
-        // delete action
-        const delBtn = swipeActions.querySelector('.swipe-delete-btn');
-        delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!confirm('Eintrag löschen?')) return;
-            const store = loadData();
-            if (task && task.isRoutine) {
-                store.__routines__ = (store.__routines__ || []).filter(r => r.id !== sourceTask.id);
-            } else {
-                store[selectedDateStr] = (store[selectedDateStr] || []).filter(t => t.id !== sourceTask.id);
-            }
-            saveData(store);
-            renderTimeline();
+            card.style.transform = 'translateX(0)'; cX = 0;
         });
         return row;
     }
 
-    function makeFixedRow(task, isPastLine, data, isBottom) {
-        const wrapper = document.createElement('div'); wrapper.className = `fixed-row ${isBottom ? 'bottom' : 'top'}`;
-        wrapper.innerHTML = `
-        <div class="timeline-row" style="min-height:50px;">
-        <div class="time-col">
-        <span class="start-time" style="font-weight:700">${task.time}</span>
-        <div class="time-dot ${isPastLine ? 'past-dot' : ''}"></div>
-        ${!isBottom ? `<div class="duration-line ${isPastLine ? 'past-line' : ''}"></div>` : ''}
+    function makeAnsFixed(task, past, isBottom) {
+        const wrapper = document.createElement('div'); wrapper.className = 'ans-fixed-wrap';
+        const row = document.createElement('div'); row.className = 'ans-row'; row.style.minHeight = '44px';
+        row.innerHTML = `
+        <div class="ans-time-col">
+            <span class="ans-start-time" style="font-weight:700">${task.time}</span>
+            <div class="ans-dot fixed"></div>
+            ${!isBottom ? '<div class="ans-line" style="background:var(--danger)"></div>' : ''}
         </div>
-        <div class="content-col ${task.completed ? 'completed' : ''}">
-        <div class="task-left">
-        <span class="task-emoji">${task.icon}</span>
-        <div class="task-text"><h2 style="font-weight:700">${task.title}</h2></div>
-        </div>
-        
-        </div>
+        <div class="ans-card fixed-card">
+            <div class="ans-card-left">
+                <span class="ans-emoji">${task.icon}</span>
+                <div class="ans-text"><span class="ans-title">${task.title}</span></div>
+            </div>
         </div>`;
-        wrapper.querySelector('.content-col').addEventListener('click', () => openModal(task));
-        // no checkbox in fixed rows anymore
+        row.querySelector('.ans-card').addEventListener('click', () => openModal(task));
+        wrapper.appendChild(row);
         return wrapper;
     }
 
-    function updateNextTaskBanner(midTasks, aufTask, schlTask, isToday, curMin) {
-        if (!isToday) { nextBanner.style.display = 'none'; return; }
-        const allTasks = [aufTask, ...midTasks, schlTask].filter(t => t && t.time).sort((a, b) => toMin(a.time) - toMin(b.time));
-        const next = allTasks.find(t => toMin(t.time) > curMin);
+    function makeStatusDots(status) {
+        const dots = ['not-started','in-progress','done'];
+        let cls = '';
+        if (status === 'done') cls = 'filled-green';
+        else if (status === 'in-progress') cls = 'filled-yellow';
+        else cls = 'filled-red';
+        const filledIdx = dots.indexOf(status);
+        let html = '<div class="ans-status">';
+        dots.forEach((k, i) => {
+            const fill = i < filledIdx ? ' filled-green' : (i === filledIdx ? ` ${cls}` : '');
+            html += `<span class="ans-stat-dot${fill}"></span>`;
+        });
+        html += '</div>';
+        return html;
+    }
 
-        if (!next) { nextBanner.style.display = 'none'; return; }
-        const minUntil = toMin(next.time) - curMin;
+    function updateAnsNext(midTasks, aufTask, schlTask, isToday, curMin) {
+        if (!isToday) { ansNextBanner.style.display = 'none'; return; }
+        const all = [aufTask, ...midTasks, schlTask].filter(t => t && t.time).sort((a, b) => toMin(a.time) - toMin(b.time));
+        const next = all.find(t => toMin(t.time) > curMin);
+        if (!next) { ansNextBanner.style.display = 'none'; return; }
+        const diff = toMin(next.time) - curMin;
+        ansNextIcon.textContent = next.icon || '📋';
+        ansNextTitle.textContent = next.title;
+        ansNextChip.textContent = diff <= 60 ? `in ${minToStr(diff)}` : `um ${next.time}`;
+        ansNextBanner.style.display = 'block';
+    }
 
-        nextIcon.textContent  = next.icon || '📋';
-        nextTitle.textContent = next.title;
-        nextTime.textContent  = minUntil <= 60 ? `in ${minToStr(minUntil)}` : `um ${next.time}`;
-        nextBanner.style.display = 'block';
+    function updateAnsSuggestion() {
+        if (selectedDateStr !== todayStr()) { ansSuggestion.style.display = 'none'; return; }
+        const prev = getPreviousDayKey(todayStr());
+        const incomplete = getIncompleteTasks(prev);
+        if (incomplete.length > 0) {
+            ansSuggestion.style.display = 'flex';
+            ansSuggText.textContent = `${incomplete.length} offene Aufgaben vom Vortag`;
+        } else {
+            ansSuggestion.style.display = 'none';
+        }
     }
 
     // ─── MODAL CONTROLS ──────────────────────────────────────────────────
@@ -984,7 +951,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => inputTitle.focus(), 250);
     }
 
-    function closeModal() { modal.classList.remove('open'); settingsModal.classList.remove('open'); }
+    function closeModal() {
+        modal.classList.remove('open');
+    }
     function currentTimeRounded() { const n = new Date(); return timeFromMin((Math.ceil((n.getHours() * 60 + n.getMinutes()) / 30) * 30) % 1440); }
 
     function updateModalToggleUI() {
@@ -1203,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notifyEnd
             });
         }
-        saveData(data); closeModal(); renderTimeline(); checkDueNotifications();
+        saveData(data); closeModal(); renderAnstehend(); checkDueNotifications();
     }
 
     function deleteCurrentTask() {
@@ -1213,22 +1182,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (editingTaskId && data[selectedDateStr]) {
             data[selectedDateStr] = data[selectedDateStr].filter(t => t.id !== editingTaskId);
         }
-        saveData(data); closeModal(); renderTimeline();
+        saveData(data); closeModal(); renderAnstehend();
     }
 
     // ─── EVENTS ──────────────────────────────────────────────────────────
     function setupEvents() {
-        document.getElementById('prev-month').onclick = () => changeMonth(-1);
-        document.getElementById('next-month').onclick = () => changeMonth(1);
+        document.getElementById('prev-week').onclick = () => changeWeek(-1);
+        document.getElementById('next-week').onclick = () => changeWeek(1);
         document.getElementById('add-task-floating').onclick = () => openModal();
-        document.getElementById('btn-today').onclick = goToday;
+        document.getElementById('btn-ans-today').onclick = goToday;
 
         btnCancel.onclick = closeModal; btnSave.onclick = saveModalData; btnDelete.onclick = deleteCurrentTask;
-        modalBackdrop.onclick = closeModal; settingsBackdrop.onclick = closeModal;
+        modalBackdrop.onclick = closeModal;
 
-        // Settings Button Toggles
-        btnSettings.onclick = () => { settingsModal.classList.add('open'); updateSettingsUI(); };
-        btnSettingsClose.onclick = closeModal;
+        btnAnsSettings.onclick = () => { switchTab('einstellungen'); };
 
         themeAuto.onclick = () => applyTheme('auto');
         themeLight.onclick = () => applyTheme('light');
@@ -1239,6 +1206,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if ('setAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
         };
         btnTestNotif.onclick = sendTestNotification;
+        const btnNtfyTest = document.getElementById('btn-ntfy-test');
+        if (btnNtfyTest) btnNtfyTest.onclick = () => {
+            sendNtfy('Strukturierter Planer ⚡', 'ntfy funktioniert! Benachrichtigungen sind aktiv.');
+        };
         notifyBeforeToggle.onclick = () => { const settings = loadSettings(); settings.notifyBefore = !settings.notifyBefore; saveSettings(settings); };
         notifyStartToggle.onclick = () => { const settings = loadSettings(); settings.notifyStart = !settings.notifyStart; saveSettings(settings); };
         notifyEndToggle.onclick = () => { const settings = loadSettings(); settings.notifyEnd = !settings.notifyEnd; saveSettings(settings); };
@@ -1248,7 +1219,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.files && e.target.files[0]) importDataFile(e.target.files[0]);
             e.target.value = '';
         };
-        suggestionAction.onclick = copyIncompleteTasksToToday;
+        ansSuggBtn.onclick = copyIncompleteTasksToToday;
+
+        if (inputNtfyTopic) {
+            inputNtfyTopic.addEventListener('input', () => {
+                localStorage.setItem('planner_ntfy_topic', inputNtfyTopic.value.trim());
+            });
+        }
 
         attachModalToggleControls();
 
@@ -1262,12 +1239,243 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.key === 'Escape') closeModal();
         });
 
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
-            }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+        }
+
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                if (tab) switchTab(tab);
+            });
+        });
+
+        const prevYear = document.getElementById('prev-year');
+        const nextYear = document.getElementById('next-year');
+        if (prevYear) prevYear.onclick = () => { yearViewDate.setFullYear(yearViewDate.getFullYear() - 1); renderYearView(); };
+        if (nextYear) nextYear.onclick = () => { yearViewDate.setFullYear(yearViewDate.getFullYear() + 1); renderYearView(); };
+
+        const nameInput = document.getElementById('settings-name');
+        if (nameInput) {
+            nameInput.value = localStorage.getItem('planner_name') || 'Marten';
+            nameInput.addEventListener('input', () => {
+                localStorage.setItem('planner_name', nameInput.value.trim() || 'Marten');
+                renderHeuteTab();
+            });
+        }
+
+        const goTimeline = document.getElementById('heute-go-timeline');
+        if (goTimeline) {
+            goTimeline.addEventListener('click', () => {
+                goToday();
+                switchTab('anstehend');
+            });
+        }
+
+        // Design-Aufgabe button
+        const btnDesign = document.getElementById('btn-add-design-task');
+        if (btnDesign) {
+            btnDesign.addEventListener('click', () => {
+                const store = loadData();
+                const today = todayStr();
+                ensureDay(store, today);
+                const already = store[today].find(t => t.id === '__design_task__');
+                if (!already) {
+                    store[today].push({
+                        id: '__design_task__' + Date.now(),
+                        title: 'Design-Reflexion',
+                        icon: '🎨',
+                        time: '18:00',
+                        endTime: '18:15',
+                        notes: 'Beobachte eine App: Welches Prinzip – Klarheit, Deferentialität oder Tiefe – fällt dir auf?',
+                        status: 'not-started',
+                        checkable: true
+                    });
+                    saveData(store);
+                    renderHeuteTab();
+                }
+                btnDesign.textContent = '✓ Hinzugefügt';
+                btnDesign.classList.add('added');
+                setTimeout(() => {
+                    btnDesign.textContent = 'Aufgabe hinzufügen';
+                    btnDesign.classList.remove('added');
+                }, 2000);
+            });
+        }
     }
 
-    function changeMonth(dir) { currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + dir, 1); selectedDateStr = dateStr(currentDate); renderHeader(); renderTimeline(); }
-    function goToday() { currentDate = new Date(); selectedDateStr = todayStr(); shouldScrollToCurrentTime = true; renderHeader(); renderTimeline(); }
+    function changeWeek(dir) {
+        const newDate = new Date(currentDate);
+        newDate.setDate(newDate.getDate() + dir * 7);
+        currentDate = newDate;
+        selectedDateStr = dateStr(currentDate);
+        renderWeekStrip();
+        renderAnstehend();
+    }
+
+    function goToday() {
+        currentDate = new Date();
+        selectedDateStr = todayStr();
+        shouldScrollToCurrentTime = true;
+        renderWeekStrip();
+        renderAnstehend();
+    }
+
+    // ─── TAB SWITCHING ────────────────────────────────────────────────────
+    function switchTab(tab) {
+        closeModal();
+        document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        const tabEl = document.getElementById(`tab-${tab}`);
+        const btnEl = document.querySelector(`.nav-btn[data-tab="${tab}"]`);
+        if (tabEl) tabEl.classList.add('active');
+        if (btnEl) btnEl.classList.add('active');
+
+        if (tab === 'anstehend') {
+            renderWeekStrip();
+            renderAnstehend();
+            renderYearView();
+        } else if (tab === 'einstellungen') {
+            updateSettingsUI();
+        } else if (tab === 'heute') {
+            renderHeuteTab();
+        }
+    }
+
+    // ─── HEUTE TAB ───────────────────────────────────────────────────────
+    function renderHeuteTab() {
+        const hour = new Date().getHours();
+        let greeting;
+        if (hour < 12) greeting = 'Guten Morgen';
+        else if (hour < 17) greeting = 'Guten Tag';
+        else greeting = 'Guten Abend';
+
+        const greetingEl = document.getElementById('hero-greeting');
+        if (greetingEl) greetingEl.textContent = greeting;
+
+        const savedName = localStorage.getItem('planner_name') || 'Marten';
+        const nameEl = document.getElementById('hero-name');
+        if (nameEl) nameEl.textContent = savedName;
+
+        const dateEl = document.getElementById('hero-date');
+        if (dateEl) {
+            const now = new Date();
+            const wd = WOCHENTAGE[now.getDay()];
+            const tag = now.getDate();
+            const monat = MONATE[now.getMonth()];
+            dateEl.textContent = `${wd}, ${tag}. ${monat}`;
+        }
+
+        // Next event
+        const nextCard = document.getElementById('heute-next-card');
+        const nextIcon = document.getElementById('heute-next-icon');
+        const nextTitle = document.getElementById('heute-next-title');
+        const nextTime = document.getElementById('heute-next-time');
+
+        if (nextCard && nextIcon && nextTitle && nextTime) {
+            const tasks = getDayTasks(todayStr());
+            const curMin = nowMin();
+            const next = tasks
+                .filter(t => t.time && toMin(t.time) > curMin && t.id !== '__aufstehen__' && t.id !== '__schlafen__')
+                .sort((a, b) => toMin(a.time) - toMin(b.time))[0];
+
+            if (next) {
+                const diff = toMin(next.time) - curMin;
+                nextIcon.textContent = next.icon || '📋';
+                nextTitle.textContent = next.title;
+                nextTime.textContent = diff <= 60 ? `in ${minToStr(diff)}` : `um ${next.time}`;
+                nextCard.style.display = 'block';
+            } else {
+                nextCard.style.display = 'none';
+            }
+        }
+
+        // Stats
+        const allTasks = getDayTasks(todayStr()).filter(t => t.id !== '__aufstehen__' && t.id !== '__schlafen__');
+        const open = allTasks.filter(t => normalizeStatus(t) === 'not-started').length;
+        const progress = allTasks.filter(t => normalizeStatus(t) === 'in-progress').length;
+        const done = allTasks.filter(t => normalizeStatus(t) === 'done').length;
+
+        const statOpen = document.getElementById('heute-stat-open');
+        const statProgress = document.getElementById('heute-stat-progress');
+        const statDone = document.getElementById('heute-stat-done');
+        if (statOpen) statOpen.textContent = open;
+        if (statProgress) statProgress.textContent = progress;
+        if (statDone) statDone.textContent = done;
+
+        // Task list
+        const taskList = document.getElementById('heute-task-list');
+        if (taskList) {
+            taskList.innerHTML = '';
+            const visible = allTasks.filter(t => normalizeStatus(t) !== 'done').sort((a, b) => toMin(a.time) - toMin(b.time));
+            if (visible.length === 0) {
+                taskList.innerHTML = '<div class="heute-task-empty">Alle Aufgaben erledigt! 🎉</div>';
+            } else {
+                visible.forEach(task => {
+                    const item = document.createElement('div');
+                    item.className = 'heute-task-item';
+                    const status = normalizeStatus(task);
+                    item.innerHTML = `
+                        <span class="hti-icon">${task.icon || '📋'}</span>
+                        <div class="hti-info">
+                            <div class="hti-title">${task.title}</div>
+                            <div class="hti-meta">${task.time || ''}${task.endTime ? ' - ' + task.endTime : ''}</div>
+                        </div>
+                        <span class="hti-status ${status}"></span>
+                    `;
+                    item.addEventListener('click', () => openModal(task));
+                    taskList.appendChild(item);
+                });
+            }
+        }
+    }
+
+    // ─── YEAR VIEW ────────────────────────────────────────────────────────
+    function renderYearView() {
+        const grid = document.getElementById('year-grid');
+        const label = document.getElementById('year-label');
+        if (!grid || !label) return;
+
+        const year = yearViewDate.getFullYear();
+        label.textContent = year;
+        grid.innerHTML = '';
+
+        const data = loadData();
+        const today = todayStr();
+
+        for (let m = 0; m < 12; m++) {
+            const month = document.createElement('div');
+            month.className = 'year-month';
+
+            const title = document.createElement('div');
+            title.className = 'year-month-title';
+            title.textContent = MONATE[m];
+            month.appendChild(title);
+
+            const daysInMonth = new Date(year, m + 1, 0).getDate();
+            const daysGrid = document.createElement('div');
+            daysGrid.className = 'year-month-days';
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateKey = `${year}-${pad(m+1)}-${pad(d)}`;
+                const dayEl = document.createElement('span');
+                dayEl.className = 'year-day';
+                if (dateKey === today) dayEl.classList.add('today');
+                const dayTasks = data[dateKey];
+                if (dayTasks && dayTasks.some(t => t.id !== '__aufstehen__' && t.id !== '__schlafen__')) dayEl.classList.add('has-tasks');
+                dayEl.textContent = d;
+                dayEl.addEventListener('click', () => {
+                    currentDate = new Date(year, m, d);
+                    selectedDateStr = dateKey;
+                    switchTab('anstehend');
+                    renderWeekStrip();
+                    renderAnstehend();
+                });
+                daysGrid.appendChild(dayEl);
+            }
+            month.appendChild(daysGrid);
+            grid.appendChild(month);
+        }
+    }
 
 });
